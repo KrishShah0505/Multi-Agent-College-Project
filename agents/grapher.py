@@ -4,6 +4,7 @@ import json
 from agents.charts import CATALOG, build_chart
 from agents.facts import fact_table
 from agents.schemas import ChartsOut, parse
+from agents.summariser import HIDDEN
 
 SYSTEM = """You choose which charts to show a reader with no finance background, from a fixed catalog, and write a one-sentence caption for each.
 
@@ -21,7 +22,7 @@ def run(llm, facts, question=None, previous=None, problems=None) -> ChartsOut:
     user = {
         "audience_question": question or "What does this result mean?",
         "catalog": [{"id": k, "use_when": v["use_when"]} for k, v in CATALOG.items()],
-        "facts": fact_table(facts),
+        "facts": [f for f in fact_table(facts) if f["key"] not in HIDDEN],
     }
     if problems:
         user["previous_choice"] = previous.model_dump() if previous else None

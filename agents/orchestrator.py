@@ -10,7 +10,7 @@ import httpx
 
 from agents import config, grapher, summariser, verifier
 from agents.facts import allowed_numbers, compute_facts
-from agents.llm import LLMError
+from agents.llm import LLMError, LLMFatalError
 from agents.schemas import AgentOutputError
 
 
@@ -33,6 +33,8 @@ def _run_agent(fn, label, *args, **kwargs):
     """Run an agent; turn failures into issues instead of crashing the loop."""
     try:
         return fn(*args, **kwargs), []
+    except LLMFatalError:
+        raise
     except (AgentOutputError, LLMError) as exc:
         return None, [verifier.Issue(label, "agent_failed", str(exc))]
 

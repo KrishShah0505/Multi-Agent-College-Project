@@ -4,6 +4,9 @@ import json
 from agents.facts import MODEL_LIMITATIONS, display, fact_table
 from agents.schemas import SummaryOut, parse
 
+# Model settings the reader never needs; the verifier still accepts them as real numbers.
+HIDDEN = {"sigma", "kappa", "theta", "r0", "n_paths"}
+
 SYSTEM = """You explain the result of a credit valuation adjustment (CVA) calculation to a reader with no finance background.
 You are given FACTS. Each fact has a key, a display string and a meaning.
 
@@ -14,11 +17,14 @@ Rules:
 4. Explain what CVA means in one sentence early in the explanation.
 5. Choose 3 to 5 fact_keys for key_numbers and give each a short plain label. Do not include the value; the system adds it.
 6. caveats: 2 or 3 short sentences based on the MODEL_LIMITATIONS provided.
-7. If problems_to_fix is given, fix every one of them and keep the rest of the draft as it was.
+7. Maximum 150 words in explanation, in 2 short paragraphs. Use at most 6 numbers in total.
+8. Do not mention model names (such as Vasicek or Monte Carlo) or technical settings. The caveats cover assumptions.
+9. Write numbers as digits, never as words.
+10. If problems_to_fix is given, fix every one of them and keep the rest of the draft as it was.
 
 Return ONLY a JSON object:
 {"headline": string (max 20 words),
- "explanation": string (120 to 200 words, 2 or 3 short paragraphs separated by \\n\\n),
+ "explanation": string (80 to 150 words, 2 short paragraphs separated by \\n\\n),
  "key_numbers": [{"fact_key": string, "label": string}],
  "caveats": [string]}"""
 
@@ -26,7 +32,7 @@ Return ONLY a JSON object:
 def run(llm, facts, question=None, previous=None, problems=None) -> SummaryOut:
     user = {
         "audience_question": question or "What does this result mean?",
-        "facts": fact_table(facts),
+        "facts": [f for f in fact_table(facts) if f["key"] not in HIDDEN],
         "model_limitations": MODEL_LIMITATIONS,
     }
     if problems:
@@ -54,8 +60,8 @@ def fallback(facts: dict) -> dict:
         "headline": f"Estimated cost of counterparty default risk: {d('cva')}",
         "explanation": (
             f"CVA is the estimated cost today of the risk that the other side of the swap "
-            f"fails to pay before the swap ends. For this {d('tenor_years')} swap on "
-            f"{d('notional')}, it is {d('cva')}, which is {d('cva_pct_notional')} of the notional.\n\n"
+            f"fails to pay before the swap ends. For this swap on {d('notional')}, "
+            f"which runs for {d('tenor_years')}, it is {d('cva')}, which is {d('cva_pct_notional')} of the notional.\n\n"
             f"The amount the counterparty could owe us peaks at {d('peak_epe')} on average, "
             f"around {d('peak_epe_time')} in."
         ),

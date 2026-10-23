@@ -2,6 +2,7 @@ import { useState } from "react";
 import ParametersPanel from "./components/ParametersPanel";
 import CvaSummary from "./components/CvaSummary";
 import ExposureChart from "./components/ExposureChart";
+import ExplainPanel from "./components/ExplainPanel";
 import { computeCva } from "./lib/api";
 
 const DEFAULT_PARAMS = {
@@ -66,7 +67,7 @@ export default function App() {
         />
         <div className="right-col">
           <CvaSummary result={result} notional={params.notional} />
-          <ExposureChart result={result} />
+          <ExposureChart result={result} /><ExplainPanel params={params} />
         </div>
       </main>
 

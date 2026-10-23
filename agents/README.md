@@ -28,3 +28,14 @@ pytest agents/tests -q
 - Number check is rounding-based, so a coarse number (e.g. "5") can match an unrelated fact by coincidence. Number words ("five") are not checked.
 - The LLM half of the verifier only judges wording and can raise false alarms.
 - Not yet tested against live Groq.
+
+## Evaluation (agents/evaluation/)
+```
+python -m agents.evaluation.run_eval faults               # offline, no API key; code-layer fault injection
+python -m agents.evaluation.run_eval faults --with-llm    # + LLM wording review on number-free faults (~36 calls)
+python -m agents.evaluation.run_eval compare --n 20 --repeats 1 --judge   # pipeline vs single prompt (needs GROQ key)
+python -m agents.evaluation.run_eval report               # rebuild tables + blind spot-check sheet
+```
+Results land in `agents/evaluation/results/` (`faults.md`, `compare.jsonl`, `compare.md`, `spot_check.md`).
+`compare` resumes where it stopped (free-tier limits), `--fresh` starts over, `--repeats 3` measures consistency.
+Start with `--n 3` to check the setup before the full run. Add `agents/evaluation/results/` to `.gitignore` if you do not want raw runs committed.

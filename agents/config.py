@@ -1,5 +1,12 @@
-"""Settings, read from environment variables."""
+"""Settings, read from environment variables (and agents/.env if present)."""
 import os
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).with_name(".env"))
+except ImportError:  # python-dotenv is optional; plain environment variables still work
+    pass
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 # Model ids on Groq change over time. Check console.groq.com/docs/models and

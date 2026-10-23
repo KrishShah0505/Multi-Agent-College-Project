@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agents import config
-from agents.llm import GroqClient, LLMError
+from agents.llm import GroqClient, LLMError, LLMFatalError
 from agents.orchestrator import EngineError, run_pipeline
 
 app = FastAPI(title="CVA Agents", version="0.1.0")
@@ -38,3 +38,5 @@ def explain(req: ExplainRequest):
         return run_pipeline(req.params, llm, req.question)
     except EngineError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+    except LLMFatalError as exc:
+        raise HTTPException(status_code=502, detail=f"LLM error: {exc}")

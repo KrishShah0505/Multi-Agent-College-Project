@@ -9,9 +9,9 @@ import math
 # key -> (unit, decimals, plain-English meaning)
 FACT_META = {
     "cva": ("usd", 0, "CVA: estimated cost today of the risk that the counterparty defaults before the swap ends"),
-    "cva_pct_notional": ("pct", 3, "CVA as a share of the swap's notional (face amount)"),
+    "cva_pct_notional": ("pct", 4, "CVA as a share of the swap's notional (face amount)"),
     "notional": ("usd", 0, "Notional: the face amount the swap's payments are calculated on"),
-    "tenor_years": ("years", 0, "Time until the swap ends"),
+    "tenor_years": ("years", 2, "Time until the swap ends"),
     "fixed_rate": ("pct", 3, "Fixed interest rate on the swap"),
     "par_rate": ("pct", 3, "Fixed rate that would make the swap worth exactly zero at the start"),
     "cds_spread": ("pct", 2, "Counterparty's CDS spread: the yearly market price of insuring against its default"),
@@ -19,11 +19,11 @@ FACT_META = {
     "hazard": ("pct", 3, "Implied yearly default intensity of the counterparty (hazard rate)"),
     "cumulative_default_prob": ("pct", 2, "Model chance that the counterparty defaults at some point before the swap ends"),
     "peak_epe": ("usd", 0, "Highest average amount the counterparty would owe us at any date (peak EPE)"),
-    "peak_epe_time": ("years", 1, "When the average amount owed peaks"),
+    "peak_epe_time": ("years", 2, "When the average amount owed peaks"),
     "peak_pfe": ("usd", 0, "Highest bad-case amount the counterparty could owe us at any date (peak PFE)"),
-    "peak_pfe_time": ("years", 1, "When the bad-case amount owed peaks"),
+    "peak_pfe_time": ("years", 2, "When the bad-case amount owed peaks"),
     "pfe_quantile": ("pct", 0, "Confidence level used for the bad-case (PFE) estimate"),
-    "peak_contribution_time": ("years", 1, "End of the period that adds the most to CVA"),
+    "peak_contribution_time": ("years", 2, "End of the period that adds the most to CVA"),
     "peak_contribution_share": ("pct", 0, "Share of total CVA coming from that single biggest period"),
     "n_paths": ("num", 0, "Number of simulated interest-rate scenarios"),
     "sigma": ("pct", 2, "Interest-rate volatility assumed in the model"),
@@ -34,7 +34,7 @@ FACT_META = {
 
 MODEL_LIMITATIONS = [
     "Counterparty default risk is assumed constant over time, based on a single CDS spread.",
-    "Interest rates follow a one-factor Vasicek model, which can produce negative rates.",
+    "Interest rates are simulated with a simple one-factor model, which can produce negative rates.",
     "Only CVA is measured; other valuation adjustments (own default, funding, capital) are not.",
 ]
 
@@ -89,6 +89,7 @@ def display(key: str, facts: dict) -> str:
     unit, d, _ = FACT_META[key]
     v = facts[key]
     if unit == "usd":
+        d = 2 if abs(v) < 100 else d   # keep resolution for very small amounts
         return f"${v:,.{d}f}"
     if unit == "pct":
         return f"{v * 100:.{d}f}%"

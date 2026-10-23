@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from agents.charts import CATALOG
 from agents.facts import FACT_META, cva_contributions, fact_table
-from agents.llm import LLMError
+from agents.llm import LLMError, LLMFatalError
 from agents.schemas import AgentOutputError, ReviewOut, SummaryOut, ChartsOut, parse
 
 
@@ -102,8 +102,10 @@ def check_numbers(text: str, allowed: dict, source: str, where: str) -> list[Iss
 
 
 _BANNED = re.compile(
-    r"\b(you should|we recommend|i recommend|should (buy|sell|hedge|avoid)|will lose|will default|guaranteed|"
+    r"\b(you should|we recommend|i recommend|should (buy|sell|hedge|avoid)|will lose|guaranteed|"
     r"good deal|bad deal|safe investment)\b", re.I)
+_TECH = re.compile(r"\b(vasicek|monte[- ]carlo|risk[- ]neutral|stochastic|mean[- ]revers\w*)\b", re.I)
+MAX_WORDS, MAX_NUMBERS = 200, 8
 
 
 # ----------------------------------------------------------- code checks ----
@@ -118,7 +120,16 @@ def verify_summary(summary: SummaryOut, allowed: dict) -> list[Issue]:
     parts = [("headline", summary.headline), ("explanation", summary.explanation)]
     parts += [(f"caveat {i + 1}", c) for i, c in enumerate(summary.caveats)]
     parts += [(f"label of {k.fact_key}", k.label) for k in summary.key_numbers]
+    words = len(summary.explanation.split())
+    if words > MAX_WORDS:
+        iss.append(Issue("summary", "too_long", f"explanation is {words} words; keep it under 150."))
+    n_nums = sum(1 for _ in extract_numbers(summary.explanation))
+    if n_nums > MAX_NUMBERS:
+        iss.append(Issue("summary", "too_many_numbers", f"explanation contains {n_nums} numbers; use at most 6 and leave detail to the key numbers."))
     for where, text in parts:
+        m = _TECH.search(text)
+        if m:
+            iss.append(Issue("summary", "technical_term", f"'{m.group(0)}' in {where}: do not mention model names; describe assumptions in plain words."))
         iss += check_numbers(text, allowed, "summary", where)
         m = _BANNED.search(text)
         if m:
@@ -158,6 +169,8 @@ def llm_review(llm, summary: SummaryOut, charts: ChartsOut, facts: dict):
                        "draft": {"summary": summary.model_dump(), "charts": charts.model_dump()}})
     try:
         out = parse(ReviewOut, llm.complete_json(REVIEW_SYSTEM, user))
+    except LLMFatalError:
+        raise
     except (LLMError, AgentOutputError):
         return [], "unavailable"
     if out.pass_ and not out.issues:

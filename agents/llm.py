@@ -12,6 +12,10 @@ class LLMError(Exception):
     """The LLM call failed or did not return usable JSON."""
 
 
+class LLMFatalError(LLMError):
+    """Retrying cannot help (bad key, unknown model, bad request)."""
+
+
 class LLMClient(Protocol):
     calls: int
     tokens: int
@@ -56,6 +60,8 @@ class GroqClient:
             if r.status_code == 429 and attempt < 3:  # rate limited: back off
                 time.sleep(float(r.headers.get("retry-after", 2 ** (attempt + 1))))
                 continue
+            if r.status_code in (400, 401, 403, 404):
+                raise LLMFatalError(f"Groq HTTP {r.status_code}: {r.text[:300]}")
             if r.status_code != 200:
                 raise LLMError(f"Groq HTTP {r.status_code}: {r.text[:200]}")
 
