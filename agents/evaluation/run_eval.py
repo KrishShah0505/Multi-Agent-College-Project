@@ -45,8 +45,14 @@ def cmd_compare(a):
     path = RESULTS / "compare.jsonl"
     if a.fresh and path.exists():
         path.unlink()
+    pipeline_fn = None
+    if a.backend == "crewai":   # the three-agent pipeline runs as a CrewAI crew inside a Flow
+        from agents.crew_team import CvaCrewTeam
+        from agents.flow import run_crew_pipeline
+        team = CvaCrewTeam()
+        pipeline_fn = lambda params, q, engine_fn: run_crew_pipeline(params, q, team=team, engine_fn=engine_fn)  # noqa: E731
     run_compare(SCENARIOS[:a.n], GroqClient(), _engine(a.engine), path,
-                repeats=a.repeats, judge=a.judge)
+                repeats=a.repeats, judge=a.judge, pipeline_fn=pipeline_fn)
     cmd_report(a)
 
 
@@ -70,6 +76,8 @@ def main():
     c = sub.add_parser("compare")
     c.add_argument("--n", type=int, default=20); c.add_argument("--repeats", type=int, default=1)
     c.add_argument("--judge", action="store_true"); c.add_argument("--fresh", action="store_true")
+    c.add_argument("--backend", choices=["crewai", "direct"], default="crewai",
+                   help="how the 3-agent pipeline runs; the single-prompt baseline is always direct")
     sub.add_parser("report")
     a = p.parse_args()
     {"faults": cmd_faults, "compare": cmd_compare, "report": cmd_report}[a.cmd](a)

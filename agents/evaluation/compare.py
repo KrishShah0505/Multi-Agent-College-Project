@@ -35,15 +35,20 @@ def _usage(llm):
     return getattr(llm, "calls", 0), getattr(llm, "tokens", 0)
 
 
-def run_pipeline_record(sc, repeat, result, llm):
+def run_pipeline_record(sc, repeat, result, llm, pipeline_fn=None):
     params, q = sc["params"], sc["question"]
     facts = compute_facts(params, result)
     allowed = allowed_numbers(facts, result, params)
     c0, t0 = _usage(llm)
     start = time.time()
-    out = run_pipeline(params, llm, q, engine_fn=lambda p: copy.deepcopy(result))
+    if pipeline_fn is None:
+        out = run_pipeline(params, llm, q, engine_fn=lambda p: copy.deepcopy(result))
+        c1, t1 = _usage(llm)
+    else:   # CrewAI backend: usage comes from the crew, not from our client
+        out = pipeline_fn(params, q, lambda p: copy.deepcopy(result))
+        c0, t0 = 0, 0
+        c1, t1 = out["trace"].get("llm_calls") or 0, out["trace"].get("tokens") or 0
     seconds = time.time() - start
-    c1, t1 = _usage(llm)
 
     first = out["trace"]["attempts"][0] if out["trace"]["attempts"] else {
         "summary_issues": [], "chart_issues": [], "review": "skipped"}
@@ -116,7 +121,7 @@ def load_records(path: Path):
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def run_compare(scenarios, llm, engine_fn, path: Path, repeats=1, judge=False, log=print):
+def run_compare(scenarios, llm, engine_fn, path: Path, repeats=1, judge=False, log=print, pipeline_fn=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     done = {r["key"] for r in load_records(path)}
     engine_cache = {}
@@ -131,7 +136,7 @@ def run_compare(scenarios, llm, engine_fn, path: Path, repeats=1, judge=False, l
                 result = engine_cache[sc["id"]]
                 try:
                     if system == "pipeline":
-                        rec = run_pipeline_record(sc, rep, result, llm)
+                        rec = run_pipeline_record(sc, rep, result, llm, pipeline_fn)
                     else:
                         rec = run_baseline_record(sc, rep, result, llm, judge)
                 except FATAL:

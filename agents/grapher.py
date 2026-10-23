@@ -18,7 +18,7 @@ Rules:
 Return ONLY a JSON object: {"charts": [{"id": string, "caption": string}]}"""
 
 
-def run(llm, facts, question=None, previous=None, problems=None) -> ChartsOut:
+def build_user(facts, question=None, previous=None, problems=None) -> dict:
     user = {
         "audience_question": question or "What does this result mean?",
         "catalog": [{"id": k, "use_when": v["use_when"]} for k, v in CATALOG.items()],
@@ -27,6 +27,11 @@ def run(llm, facts, question=None, previous=None, problems=None) -> ChartsOut:
     if problems:
         user["previous_choice"] = previous.model_dump() if previous else None
         user["problems_to_fix"] = problems
+    return user
+
+
+def run(llm, facts, question=None, previous=None, problems=None) -> ChartsOut:
+    user = build_user(facts, question, previous, problems)
     return parse(ChartsOut, llm.complete_json(SYSTEM, json.dumps(user)))
 
 

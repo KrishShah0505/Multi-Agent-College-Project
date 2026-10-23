@@ -163,10 +163,14 @@ Do NOT check numbers; another system does that. Do not nitpick style. If there a
 Return ONLY JSON: {"pass": boolean, "issues": [{"target": "summary" or "charts", "message": string}]}"""
 
 
+def build_review_user(summary: SummaryOut, charts: ChartsOut, facts: dict) -> dict:
+    return {"facts": fact_table(facts),
+            "draft": {"summary": summary.model_dump(), "charts": charts.model_dump()}}
+
+
 def llm_review(llm, summary: SummaryOut, charts: ChartsOut, facts: dict):
     """Returns (issues, status) where status is 'pass', 'fail' or 'unavailable'."""
-    user = json.dumps({"facts": fact_table(facts),
-                       "draft": {"summary": summary.model_dump(), "charts": charts.model_dump()}})
+    user = json.dumps(build_review_user(summary, charts, facts))
     try:
         out = parse(ReviewOut, llm.complete_json(REVIEW_SYSTEM, user))
     except LLMFatalError:

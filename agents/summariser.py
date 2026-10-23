@@ -29,7 +29,7 @@ Return ONLY a JSON object:
  "caveats": [string]}"""
 
 
-def run(llm, facts, question=None, previous=None, problems=None) -> SummaryOut:
+def build_user(facts, question=None, previous=None, problems=None) -> dict:
     user = {
         "audience_question": question or "What does this result mean?",
         "facts": [f for f in fact_table(facts) if f["key"] not in HIDDEN],
@@ -38,6 +38,11 @@ def run(llm, facts, question=None, previous=None, problems=None) -> SummaryOut:
     if problems:
         user["previous_draft"] = previous.model_dump() if previous else None
         user["problems_to_fix"] = problems
+    return user
+
+
+def run(llm, facts, question=None, previous=None, problems=None) -> SummaryOut:
+    user = build_user(facts, question, previous, problems)
     return parse(SummaryOut, llm.complete_json(SYSTEM, json.dumps(user)))
 
 

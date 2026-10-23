@@ -27,6 +27,11 @@ function TraceDetails({ trace, verification }) {
   return (
     <details className="trace">
       <summary>How this was checked</summary>
+      {trace.crew && (
+        <div className="trace-stats">
+          {trace.crew.framework} · {trace.crew.process} process · {trace.crew.agents.length} agents: {trace.crew.agents.join(", ")}
+        </div>
+      )}
       <div className="trace-stats">
         {trace.attempts.length} attempt{trace.attempts.length === 1 ? "" : "s"} ·{" "}
         {trace.llm_calls ?? "?"} model calls · {trace.tokens ?? "?"} tokens · {trace.seconds}s

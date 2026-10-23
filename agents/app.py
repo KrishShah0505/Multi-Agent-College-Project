@@ -25,11 +25,22 @@ class ExplainRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model": config.GROQ_MODEL, "groq_key_set": bool(config.GROQ_API_KEY)}
+    return {"status": "ok", "backend": config.AGENT_BACKEND, "model": config.GROQ_MODEL,
+            "groq_key_set": bool(config.GROQ_API_KEY)}
 
 
 @app.post("/explain")
 def explain(req: ExplainRequest):
+    if config.AGENT_BACKEND == "crewai":
+        if not config.GROQ_API_KEY:
+            raise HTTPException(status_code=503, detail="GROQ_API_KEY is not set.")
+        from agents.flow import run_crew_pipeline   # imported lazily: CrewAI is a heavy import
+        try:
+            return run_crew_pipeline(req.params, req.question)
+        except EngineError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        except LLMFatalError as exc:
+            raise HTTPException(status_code=502, detail=f"LLM error: {exc}")
     try:
         llm = GroqClient()
     except LLMError as exc:
